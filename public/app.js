@@ -1,0 +1,153 @@
+/* Classroom Question Game — data-driven, static, browser-only. */
+const REQUIRED=['Course','Category','Topic','Keyword','Question','Answer','Points','Difficulty','QuestionType','Image'];
+const state={rows:[],fileName:'',course:null,category:null,topic:null,used:new Set(),results:new Map(),settings:{strategy:'random',timer:30,sound:true},current:null,answerShown:false,timer:{left:30,id:null,running:false}};
+const $=s=>document.querySelector(s), main=$('#main'), score=$('#scoreboard');
+const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+const uniq=a=>[...new Set(a.filter(Boolean))];
+const normKey=s=>String(s||'').trim().toLowerCase().replace(/\s+/g,'');
+function normalize(raw,i){const map={};Object.keys(raw).forEach(k=>map[normKey(k)]=raw[k]);const get=k=>map[normKey(k)]??'';return {id:`q${i}-${String(get('Course'))}-${String(get('Keyword'))}`,Course:String(get('Course')).trim(),Category:String(get('Category')).trim(),Topic:String(get('Topic')).trim(),Keyword:String(get('Keyword')).trim(),Question:String(get('Question')).trim(),Answer:String(get('Answer')).trim(),Points:Number(get('Points'))||0,Difficulty:String(get('Difficulty')||'').trim()||'Unspecified',QuestionType:String(get('QuestionType')||'Text').trim()||'Text',Image:String(get('Image')||'').trim(),Choices:String(get('Choices')||'').trim(),Scenario:String(get('Scenario')||'').trim()};}
+function validate(raw){if(!raw.length)throw Error('The question bank is empty.');const keys=Object.keys(raw[0]).map(normKey);const missing=REQUIRED.filter(k=>!keys.includes(normKey(k)));if(missing.length)throw Error(`Missing required columns: ${missing.join(', ')}`);}
+async function parseFile(file){const ext=file.name.split('.').pop().toLowerCase();if(!['xlsx','xls','csv'].includes(ext))throw Error('Please choose an .xlsx, .xls, or .csv file.');if(ext==='csv'){const text=await file.text();return parseCSV(text);}if(typeof XLSX==='undefined')throw Error('Excel reader could not load. Check your internet connection, or use a CSV file.');const data=await file.arrayBuffer();const wb=XLSX.read(data,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];return XLSX.utils.sheet_to_json(ws,{defval:''});}
+function parseCSV(text){const out=[];let row=[],cell='',q=false;for(let i=0;i<text.length;i++){let c=text[i],n=text[i+1];if(c==='"'&&q&&n==='"'){cell+='"';i++;}else if(c==='"')q=!q;else if(c===','&&!q){row.push(cell);cell='';}else if((c==='\n'||c==='\r')&&!q){if(c==='\r'&&n==='\n')i++;row.push(cell);cell='';if(row.some(x=>x!==''))out.push(row);row=[];}else cell+=c;}row.push(cell);if(row.some(x=>x!==''))out.push(row);if(!out.length)return[];const headers=out[0].map(x=>x.trim());return out.slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,r[i]??''])));}
+function setContext(){const bits=[state.course,state.category,state.topic].filter(Boolean);$('#contextLine').textContent=bits.length?bits.join(' › '):'Learn • Challenge • Engage';const p=$('#progressPill');if(state.rows.length){const relevant=gameRows(),done=relevant.filter(q=>state.used.has(q.id)).length;p.textContent=`${done} / ${relevant.length} completed`;p.classList.remove('hidden');}else p.classList.add('hidden');}
+function gameRows(){return state.rows.filter(q=>(!state.course||q.Course===state.course));}
+function renderStart(error=''){if(typeof error!=='string')error='';stopTimer();state.current=null;score.classList.add('hidden');$('#teacherBtn').classList.add('hidden');main.innerHTML=`<section class="hero"><h1>Turn your question bank into a live classroom game.</h1><p>Load an Excel or CSV file. Courses, categories, topics, keywords, questions, answers, points and difficulty are generated from the file.</p>${error?`<div class="error">${esc(error)}</div>`:''}<label class="upload-zone" id="drop"><input id="fileInput" type="file" accept=".xlsx,.xls,.csv"><h2>Load Question Bank</h2><p>Drop a file here or choose one from your computer.</p><span class="btn large">Choose Excel / CSV</span><p class="note">Processed locally in your browser. The file is not uploaded by this app.</p></label><div id="loaded"></div><div class="ai-entry"><h2>Create your AI question bank prompt</h2><p>Choose question count, types and difficulty, then copy a tailored prompt to your preferred AI tool.</p><button id="openAI" class="btn large" type="button">✦ AI Prompt Builder</button></div></section>`;bindUpload();document.querySelector("#openAI").onclick=renderAIGenerator;if(state.rows.length)renderLoaded();setContext();}
+function bindUpload(){const input=$('#fileInput'),drop=$('#drop');input.onchange=e=>load(e.target.files[0]);['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>{if(e.dataTransfer.files[0])load(e.dataTransfer.files[0])});}
+async function load(file){try{const raw=await parseFile(file);validate(raw);const rows=raw.map(normalize).filter(q=>q.Course&&q.Category&&q.Topic&&q.Keyword&&q.Question);if(!rows.length)throw Error('No valid question rows were found.');state.rows=rows;state.fileName=file.name;state.used.clear();state.results.clear();state.course=state.category=state.topic=null;renderStart();}catch(e){renderStart(e.message)}}
+function renderLoaded(){const courses=uniq(state.rows.map(q=>q.Course)),cats=uniq(state.rows.map(q=>q.Category)),topics=uniq(state.rows.map(q=>q.Topic)),keys=uniq(state.rows.map(q=>q.Keyword));$('#loaded').innerHTML=`<div class="loaded"><strong>${esc(state.fileName)} loaded successfully</strong><div class="stats"><div class="stat"><strong>${courses.length}</strong>Courses</div><div class="stat"><strong>${cats.length}</strong>Categories</div><div class="stat"><strong>${topics.length}</strong>Topics</div><div class="stat"><strong>${state.rows.length}</strong>Questions</div></div><p class="note">${keys.length} unique keywords detected.</p><button id="startBtn" class="btn large">Start Game</button></div>`;$('#startBtn').onclick=renderSetup;}
+// Teacher-side question bank editor: changes are local to the loaded bank.
+function renderQuestionManager(){
+ stopTimer();
+ main.innerHTML=`<button class="btn ghost back" id="qmBack">← Question Bank</button><div class="screen-head"><div><div class="eyebrow">Question bank editor</div><h1 class="screen-title">Manage uploaded questions</h1><p class="subtitle">Preview question details or remove unwanted questions. The original Excel file remains unchanged.</p></div></div><section class="panel"><div class="qm-toolbar"><input id="qmSearch" type="search" placeholder="Search questions, type, course, topic or keyword" aria-label="Search questions"><strong id="qmCount"></strong></div><div id="qmList" class="qm-list"></div></section><dialog id="qmPreview" class="qm-preview"><div class="dialog-head"><h2>Question details</h2><button class="icon-btn" id="qmClose" aria-label="Close question preview">×</button></div><div id="qmPreviewBody" class="qm-preview-body"></div><div class="dialog-actions"><button class="btn ghost" id="qmDone">Close</button></div></dialog>`;
+ document.getElementById('qmBack').onclick=renderStart;
+ const search=document.getElementById('qmSearch');const dlg=document.getElementById('qmPreview');
+ document.getElementById('qmClose').onclick=()=>dlg.close();document.getElementById('qmDone').onclick=()=>dlg.close();
+ function detail(label,value){return `<div class="qm-detail"><span>${label}</span><strong>${esc(String(value??'—')||'—')}</strong></div>`}
+ function refresh(){const term=search.value.trim().toLowerCase();const visible=state.rows.filter(q=>[q.Course,q.Category,q.Topic,q.Keyword,q.Question,q.QuestionType,q.Answer,q.Difficulty].some(v=>String(v).toLowerCase().includes(term)));
+ document.getElementById('qmCount').textContent=`${visible.length} of ${state.rows.length} questions`;
+ document.getElementById('qmList').innerHTML=visible.length?visible.map(q=>`<div class="qm-item"><div class="qm-info"><div class="qm-meta">${esc(q.Course)} › ${esc(q.Topic)} › ${esc(q.Keyword)}</div><div class="qm-chips"><span>${esc(q.QuestionType)}</span><span>${esc(q.Difficulty)}</span><span>${q.Points} pts</span></div><strong>${esc(q.Question)}</strong></div><div class="qm-actions"><button type="button" class="btn ghost qm-view" data-question-id="${encodeURIComponent(q.id)}">View</button><button type="button" class="btn danger qm-delete" data-question-id="${encodeURIComponent(q.id)}">Delete</button></div></div>`).join(''):'<p class="note">No matching questions.</p>';
+ document.querySelectorAll('.qm-view').forEach(b=>b.onclick=()=>{const q=state.rows.find(x=>x.id===decodeURIComponent(b.dataset.questionId));if(!q)return;const mcq=parseMCQ(q.Question,q.Choices);document.getElementById('qmPreviewBody').innerHTML=`<div class="qm-details-grid">${detail('Course',q.Course)}${detail('Category',q.Category)}${detail('Topic',q.Topic)}${detail('Keyword',q.Keyword)}${detail('Question type',q.QuestionType)}${detail('Difficulty',q.Difficulty)}${detail('Points',q.Points)}</div><h3>Question</h3><div class="qm-preview-text">${esc(mcq.question)}</div>${q.Scenario?`<h3>Scenario</h3><div class="qm-preview-text">${esc(q.Scenario)}</div>`:''}${mcq.choices.length?`<h3>Answer choices</h3><ol class="qm-choices">${mcq.choices.map(c=>`<li>${esc(c)}</li>`).join('')}</ol>`:''}${q.Image?`<h3>Image</h3><img class="qm-preview-image" alt="Question image" src="${esc(q.Image)}" onerror="this.style.display='none'">`:''}<h3>Correct answer</h3><div class="qm-preview-answer">${esc(q.Answer)}</div>`;dlg.showModal()});
+ document.querySelectorAll('.qm-delete').forEach(b=>b.onclick=()=>{const id=decodeURIComponent(b.dataset.questionId);const q=state.rows.find(x=>x.id===id);if(!q||!confirm(`Delete this question from the current bank?\n\n${q.Question}`))return;state.rows=state.rows.filter(x=>x.id!==id);state.used.delete(id);state.results.delete(id);if(state.current?.id===id)state.current=null;if(!state.rows.length){state.fileName='';renderStart();return}refresh()});
+ }search.oninput=refresh;refresh();setContext();
+}
+function renderSetup(){const courseCount=uniq(state.rows.map(q=>q.Course)).length;main.innerHTML=`<button class="btn ghost back" id="backStart">← Question Bank</button><div class="screen-head"><div><div class="eyebrow">Game setup</div><h1 class="screen-title">Prepare your classroom</h1><p class="subtitle">Choose how questions are selected and set the optional timer.</p></div></div><div class="setup setup-single"><section class="panel"><h2>Game options</h2><div class="field"><label>Question selection</label><select id="strategy"><option value="random">Random unused question</option><option value="low">Lowest difficulty first</option><option value="high">Highest difficulty first</option><option value="teacher">Teacher chooses question</option></select></div><div class="field"><label>Question timer</label><select id="timer"><option value="0">Off</option><option>15</option><option selected>30</option><option>45</option><option>60</option></select></div><div class="field"><label><input id="sound" type="checkbox" checked> Countdown sound (last 5 seconds)</label></div><p class="note">${courseCount} course${courseCount===1?'':'s'} available in this question bank.</p><button id="continue" class="btn large">Continue to Course Selection</button></section></div>`;$('#backStart').onclick=()=>renderStart();$('#continue').onclick=()=>{state.settings.strategy=$('#strategy').value;state.settings.timer=+$('#timer').value;state.settings.sound=$('#sound').checked;renderCourses();};}
+function cards(title,subtitle,items,onPick,back){main.innerHTML=`${back?'<button class="btn ghost back" id="back">← Back</button>':''}<div class="screen-head"><div><div class="eyebrow">Classroom game</div><h1 class="screen-title">${esc(title)}</h1><p class="subtitle">${esc(subtitle)}</p></div></div><div class="cards">${items.map(x=>`<button class="select-card" data-v="${encodeURIComponent(x)}"><h3>${esc(x)}</h3><p>Select to continue →</p></button>`).join('')}</div>`;document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>onPick(decodeURIComponent(b.dataset.v)));if(back)$('#back').onclick=back;showGameChrome();}
+function renderCourses(){state.course=state.category=state.topic=null;cards('Select Course','Courses are read directly from the uploaded question bank.',uniq(state.rows.map(q=>q.Course)),v=>{state.course=v;renderCategories()},renderSetup);}
+function renderCategories(){state.category=state.topic=null;const items=uniq(state.rows.filter(q=>q.Course===state.course).map(q=>q.Category));cards('Select Category',state.course,items,v=>{state.category=v;renderTopics()},renderCourses);}
+function renderTopics(){state.topic=null;const items=uniq(state.rows.filter(q=>q.Course===state.course&&q.Category===state.category).map(q=>q.Topic));cards('Select Topic',`${state.course} › ${state.category}`,items,v=>{state.topic=v;renderBoard()},renderCategories);}
+function topicRows(){return state.rows.filter(q=>q.Course===state.course&&q.Category===state.category&&q.Topic===state.topic)}
+function renderBoard(){stopTimer();state.revealing=false;state.revealToken=(state.revealToken||0)+1;state.current=null;const rows=topicRows(),keys=uniq(rows.map(q=>q.Keyword));main.innerHTML=`<button class="btn ghost back" id="back">← Topics</button><div class="screen-head"><div><div class="breadcrumbs">${esc(state.course)} › ${esc(state.category)}</div><h1 class="screen-title">${esc(state.topic)}</h1><p class="subtitle">Choose a keyword card. Completed cards lock when no unused questions remain.</p></div><button id="end" class="btn ghost">End Game</button></div><div class="cards">${keys.map(k=>{const qs=rows.filter(q=>q.Keyword===k),left=qs.filter(q=>!state.used.has(q.id)).length,done=!left;return `<button class="keyword-card ${qs.some(q=>q.Difficulty.toLowerCase()==="hard")?"difficulty-hard":qs.some(q=>q.Difficulty.toLowerCase()==="medium")?"difficulty-medium":"difficulty-easy"} ${done?'done':''}" data-key="${encodeURIComponent(k)}" ${done?'disabled':''}><h3>${esc(k)}</h3><p>${done?'✓ Completed':`${left} question${left===1?'':'s'} remaining`}</p><div class="keyword-meta"><span>${uniq(qs.map(q=>q.Difficulty)).join(' • ')}</span><span>${Math.min(...qs.map(q=>q.Points))}–${Math.max(...qs.map(q=>q.Points))} pts</span></div></button>`}).join('')}</div>`;document.querySelectorAll('[data-key]').forEach(b=>b.onclick=()=>chooseKeyword(decodeURIComponent(b.dataset.key)));$('#back').onclick=renderTopics;$('#end').onclick=()=>confirmAction('End the current game and show the final leaderboard?',renderFinal);showGameChrome();}
+function chooseKeyword(k){const qs=topicRows().filter(q=>q.Keyword===k&&!state.used.has(q.id));if(!qs.length)return renderBoard();if(state.settings.strategy==='teacher'&&qs.length>1)return renderTeacherChoice(k,qs);let q;if(state.settings.strategy==='low'||state.settings.strategy==='high'){const rank={easy:1,medium:2,hard:3};q=[...qs].sort((a,b)=>((rank[a.Difficulty.toLowerCase()]||2)-(rank[b.Difficulty.toLowerCase()]||2))*(state.settings.strategy==='low'?1:-1)||a.Points-b.Points)[0];}else q=qs[Math.floor(Math.random()*qs.length)];showQuestion(q);}
+function renderTeacherChoice(k,qs){main.innerHTML=`<button class="btn ghost back" id="back">← Board</button><div class="screen-head"><div><div class="eyebrow">Teacher chooses</div><h1 class="screen-title">${esc(k)}</h1><p class="subtitle">Select one unused question.</p></div></div><div class="teacher-choice">${qs.map((q,i)=>`<button class="btn" data-q="${q.id}">Question ${i+1} · ${esc(q.Difficulty)} · ${q.Points} points<br><span class="note">${esc(q.Question)}</span></button>`).join('')}</div>`;document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>showQuestion(qs.find(q=>q.id===b.dataset.q)));$('#back').onclick=renderBoard;showGameChrome();}
+function showQuestion(q){stopTimer();state.revealing=false;state.revealToken=(state.revealToken||0)+1;state.current=q;state.answerShown=false;state.timer.left=state.settings.timer;state.timer.lastSoundSecond=null;renderQuestion();if(state.settings.timer>0)startTimer();}
+function renderQuestion(){const q=state.current,type=q.QuestionType.toLowerCase();const mcq=parseMCQ(q.Question,q.Choices);const choices=mcq.choices;main.innerHTML=`<div class="question-wrap"><button class="btn ghost back" id="back">← Game Board</button><div class="question-card"><div class="question-kicker">${esc(q.Keyword)}</div><div class="question-meta">${q.Points} POINTS • ${esc(q.Difficulty).toUpperCase()} • ${esc(q.QuestionType).toUpperCase()}</div>${q.Image?`<img class="question-image" src="${esc(q.Image)}" alt="Question diagram" onerror="this.style.display='none'">`:''}${q.Scenario?`<div class="question-text scenario">${esc(q.Scenario)}</div>`:''}<div class="question-text ${type==='scenario'?'scenario':''}">${esc(mcq.question)}</div>${(choices.length>=2)?`<div class="choices">${choices.map((c,i)=>`<div class="choice"><strong>${String.fromCharCode(65+i)}.</strong> ${esc(c)}</div>`).join('')}</div>`:''}${type.includes('true')&&!choices.length?'<div class="choices"><div class="choice">True</div><div class="choice">False</div></div>':''}<div id="answerArea">${state.answerShown?`<div class="answer"><strong>Answer</strong><br>${esc(q.Answer)}</div>`:''}</div>${timerHTML()}<div class="question-actions">${!state.answerShown?'<button id="reveal" class="btn large">Reveal Answer</button>':awardHTML()}</div></div></div>`;$('#back').onclick=()=>confirmAction('Return to the board? This question will remain unused.',()=>{stopTimer();renderBoard()});if($('#reveal'))$('#reveal').onclick=revealAnswer;bindTimer();if(state.answerShown)bindAward();showGameChrome();}
+function splitChoices(s){return String(s||'').split(/\s*\|\s*|\s*;\s*|\r?\n/).map(x=>x.trim()).filter(Boolean).map(x=>x.replace(/^[A-H][).:]\s*/i,''))}
+// Accept choices in a dedicated Choices column OR inline after the question.
+// Detect A) B) C) D), A. B. C. D., including when all appear on one line.
+function parseMCQ(question,choiceText){
+  const original=String(question||'');
+  if(String(choiceText||'').trim())return {question:original,choices:splitChoices(choiceText)};
+  const re=/(^|\s)([A-H])[).:]\s*/gi;
+  const markers=[];let m;
+  while((m=re.exec(original))!==null)markers.push({start:m.index+m[1].length,end:re.lastIndex,label:m[2].toUpperCase()});
+  const first=markers.findIndex((x,i)=>x.label==='A'&&markers[i+1]?.label==='B');
+  if(first<0)return {question:original,choices:[]};
+  const chain=[markers[first]];
+  for(let i=first+1;i<markers.length;i++){
+    if(markers[i].label===String.fromCharCode(65+chain.length))chain.push(markers[i]);
+    else break;
+  }
+  if(chain.length<2)return {question:original,choices:[]};
+  const choices=chain.map((x,i)=>original.slice(x.end,chain[i+1]?.start??original.length).trim()).filter(Boolean);
+  if(choices.length!==chain.length)return {question:original,choices:[]};
+  return {question:original.slice(0,chain[0].start).trim(),choices};
+}
+function timerHTML(){if(!state.settings.timer)return'';const left=state.timer.left,total=state.settings.timer,stage=left===0?'zero':left<=5?'urgent':left<=10?'warning':'';return `<div class="timer"><div id="timerRing" class="cq-timer-ring ${stage}" style="--cq-progress:${left/total*100}%" role="timer" aria-label="Time remaining: ${left} seconds"><div class="cq-timer-core"><span id="timerDisplay" class="timer-display ${stage}">${left}s</span><small>REMAINING</small></div></div></div>`}
+function bindTimer(){} // Timer is automatic; no manual controls.
+function startTimer(){
+  stopTimer();
+  if(!state.current||state.answerShown||state.settings.timer<=0)return;
+  state.timer.running=true;
+  const questionId=state.current.id;
+  const deadline=Date.now()+state.timer.left*1000;
+  const tick=()=>{
+    if(!state.current||state.current.id!==questionId||state.answerShown){stopTimer();return;}
+    state.timer.left=Math.max(0,Math.ceil((deadline-Date.now())/1000));
+    const display=$('#timerDisplay');
+    if(display){display.textContent=state.timer.left+'s';display.classList.toggle('zero',state.timer.left===0);display.classList.toggle('urgent',state.timer.left>0&&state.timer.left<=5);display.classList.toggle('warning',state.timer.left>5&&state.timer.left<=10);}
+    const ring=$('#timerRing');if(ring){ring.style.setProperty('--cq-progress',state.timer.left/state.settings.timer*100+'%');ring.classList.toggle('zero',state.timer.left===0);ring.classList.toggle('urgent',state.timer.left>0&&state.timer.left<=5);ring.classList.toggle('warning',state.timer.left>5&&state.timer.left<=10);ring.setAttribute('aria-label',`Time remaining: ${state.timer.left} seconds`);}
+    if(state.timer.left>0&&state.timer.left<=5&&state.timer.lastSoundSecond!==state.timer.left){state.timer.lastSoundSecond=state.timer.left;beep(state.timer.left===1?1000:740);}
+    if(state.timer.left===0){stopTimer();revealAnswer();}
+  };
+  state.timer.id=setInterval(tick,100);
+}
+function stopTimer(){if(state.timer.id!=null)clearInterval(state.timer.id);state.timer.id=null;state.timer.running=false;}
+function revealAnswer(){
+  if(!state.current||state.answerShown||state.revealing)return;
+  stopTimer();state.revealing=true;
+  const questionId=state.current.id;const revealToken=state.revealToken=(state.revealToken||0)+1;
+  const card=document.querySelector('.question-card');
+  const button=$('#reveal');if(button)button.disabled=true;
+  if(card)card.classList.add('swap-out');
+  setTimeout(()=>{
+    if(!state.current||state.current.id!==questionId||state.revealToken!==revealToken){state.revealing=false;return;}
+    state.answerShown=true;state.revealing=false;renderQuestion();
+    const next=document.querySelector('.question-card');
+    if(next){next.classList.add('swap-in');next.addEventListener('animationend',()=>next.classList.remove('swap-in'),{once:true});}
+  },300);
+}
+function beep(frequency=740){if(!state.settings.sound)return;try{const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)return;const c=new AudioCtx(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='sine';o.frequency.value=frequency;g.gain.setValueAtTime(.0001,c.currentTime);g.gain.exponentialRampToValueAtTime(.12,c.currentTime+.015);g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.18);o.start();o.stop(c.currentTime+.2);o.onended=()=>c.close();}catch{}}
+function awardHTML(){return `<div class="award"><button id="correct" class="btn good">✓ Correct</button><button id="incorrect" class="btn danger">✕ Incorrect</button><button id="skip" class="btn ghost">Skip</button></div>`}
+function bindAward(){const finish=result=>{state.used.add(state.current.id);state.results.set(state.current.id,result);state.current=null;renderBoard();};$('#correct').onclick=()=>finish('correct');$('#incorrect').onclick=()=>finish('incorrect');$('#skip').onclick=()=>finish('skipped');}
+function showGameChrome(){setContext();$('#teacherBtn').classList.remove('hidden');renderScoreboard();}
+function renderScoreboard(){score.classList.add('hidden');score.innerHTML='';}
+
+function resultStats(rows=gameRows()){
+  const attempted=rows.filter(q=>state.used.has(q.id));
+  const correct=attempted.filter(q=>state.results.get(q.id)==='correct');
+  const incorrect=attempted.filter(q=>state.results.get(q.id)==='incorrect');
+  const skipped=attempted.filter(q=>state.results.get(q.id)==='skipped');
+  const answered=correct.length+incorrect.length;
+  const accuracy=answered?Math.round(correct.length/answered*100):0;
+  const pointsEarned=correct.reduce((sum,q)=>sum+q.Points,0);
+  const pointsAttempted=attempted.reduce((sum,q)=>sum+q.Points,0);
+  return {attempted,correct,incorrect,skipped,answered,accuracy,pointsEarned,pointsAttempted,remaining:rows.length-attempted.length,total:rows.length};
+}
+function renderStatistics(){
+  stopTimer();
+  const rows=gameRows(), s=resultStats(rows);
+  const byTopic=uniq(rows.map(q=>q.Topic)).map(topic=>{const r=rows.filter(q=>q.Topic===topic),x=resultStats(r);return {topic,...x}});
+  const missed=[...s.incorrect,...s.skipped];
+  main.innerHTML=`<button class="btn ghost back" id="statsBack">← Back</button><div class="screen-head"><div><div class="eyebrow">Session analytics</div><h1 class="screen-title">Statistics Board</h1><p class="subtitle">Live performance summary for ${esc(state.course||'the current course')}.</p></div></div>
+  <div class="analytics-grid cq-analytics-grid">
+    <div class="analytics-card good-stat"><span>Correct</span><strong>${s.correct.length}</strong></div>
+    <div class="analytics-card bad-stat"><span>Incorrect</span><strong>${s.incorrect.length}</strong></div>
+    <div class="analytics-card"><span>Skipped</span><strong>${s.skipped.length}</strong></div>
+    <div class="analytics-card cq-accuracy-card"><span>Accuracy</span><div class="cq-accuracy-ring" style="--cq-accuracy:${s.accuracy}%"><strong>${s.accuracy}%</strong></div></div>
+    <div class="analytics-card"><span>Completed</span><strong>${s.attempted.length}/${s.total}</strong></div>
+    <div class="analytics-card cq-points-card"><span>Points earned</span><strong>${s.pointsEarned}</strong></div>
+  </div>
+  <section class="analytics-panel"><h2>Performance by Topic</h2><div class="analytics-table"><div class="analytics-row analytics-head"><span>Topic</span><span>Correct</span><span>Incorrect</span><span>Skipped</span><span>Accuracy</span></div>${byTopic.map(x=>`<div class="analytics-row"><span>${esc(x.topic)}</span><span>${x.correct.length}</span><span>${x.incorrect.length}</span><span>${x.skipped.length}</span><span class="cq-topic-accuracy"><strong>${x.accuracy}%</strong><span class="cq-topic-track"><span class="cq-topic-fill" style="--cq-topic:${x.accuracy}%"></span></span></span></div>`).join('')}</div></section>
+  <section class="analytics-panel"><h2>Questions to Review</h2>${missed.length?`<div class="review-list">${missed.map(q=>`<div class="review-item"><div><strong>${esc(q.Keyword)}</strong><span class="result-badge ${state.results.get(q.id)}">${state.results.get(q.id)==='incorrect'?'Incorrect':'Skipped'}</span><p>${esc(q.Question)}</p></div><small>${esc(q.Topic)} · ${q.Points} pts · ${esc(q.Difficulty)}</small></div>`).join('')}</div>`:'<p class="note">No incorrect or skipped questions yet.</p>'}</section>`;
+  $('#statsBack').onclick=()=>state.topic?renderBoard():renderCourses();showGameChrome();animateStatistics();
+}
+
+function animateStatistics(){
+  if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const cards=document.querySelectorAll('.analytics-card');
+  const fields=[0,1,2,3,null,5];
+  const values=[...cards].map((card,i)=>({el:card.querySelector('strong'),target:Number((card.querySelector('strong')?.textContent||'').replace(/[^0-9]/g,'')),i})).filter(x=>fields.includes(x.i));
+  const started=performance.now(),duration=650;
+  const animate=now=>{
+    if(!document.querySelector('.cq-analytics-grid'))return;
+    const t=Math.min(1,(now-started)/duration),eased=1-Math.pow(1-t,3);
+    values.forEach(({el,target,i})=>{if(el)el.textContent=Math.round(target*eased)+(i===3?'%':'')});
+    if(t<1)requestAnimationFrame(animate);
+  };
+  requestAnimationFrame(animate);
+}
+function renderFinal(){stopTimer();const relevant=gameRows(),stats=resultStats(relevant),done=stats.attempted.length;main.innerHTML=`<section class="hero final-screen"><div class="eyebrow">Game complete</div><h1>Session Complete</h1><p>You completed <strong>${done}</strong> of <strong>${relevant.length}</strong> questions with <strong>${stats.accuracy}% accuracy</strong>.</p><div class="question-actions"><button id="viewStats" class="btn">View Statistics</button><button id="again" class="btn ghost">Play Again</button><button id="newBank" class="btn ghost">New Question Bank</button></div></section>`;$('#viewStats').onclick=renderStatistics;$('#again').onclick=()=>{state.used.clear();state.results.clear();renderCourses()};$('#newBank').onclick=()=>confirmAction('Load another question bank? Current game progress will be cleared.',()=>{state.rows=[];state.used.clear();state.results.clear();renderStart()});showGameChrome();}
+function confirmAction(text,fn){const d=$('#confirmDialog');$('#confirmText').textContent=text;$('#confirmYes').onclick=()=>{d.close();fn()};d.showModal();}
+document.querySelectorAll('[data-close-confirm]').forEach(b=>b.onclick=()=>$('#confirmDialog').close());document.querySelectorAll('[data-close-dialog]').forEach(b=>b.onclick=()=>$('#teacherDialog').close());
+$('#teacherBtn').onclick=()=>{const c=$('#teacherControls');c.innerHTML=`<div class="control-grid"><button class="btn ghost" id="tcCourse">Change course</button><button class="btn ghost" id="tcTopic">Change category / topic</button><button class="btn ghost" id="tcStats">Statistics board</button><button class="btn ghost" id="tcResetTopic">Reset current topic</button><button class="btn danger" id="tcResetGame">Reset entire game</button><button class="btn warn" id="tcEnd">End game</button><button class="btn ghost" id="tcLoad">Load another bank</button></div>`;const d=$('#teacherDialog');d.showModal();$('#tcCourse').onclick=()=>{d.close();renderCourses()};$('#tcTopic').onclick=()=>{d.close();state.category?renderTopics():renderCategories()};$('#tcStats').onclick=()=>{d.close();renderStatistics()};$('#tcResetTopic').onclick=()=>{d.close();confirmAction(' Reset used questions in the current topic?',()=>{topicRows().forEach(q=>{state.used.delete(q.id);state.results.delete(q.id)});renderBoard()})};$('#tcResetGame').onclick=()=>{d.close();confirmAction('Reset all question progress?',()=>{state.used.clear();state.results.clear();renderCourses()})};$('#tcEnd').onclick=()=>{d.close();renderFinal()};$('#tcLoad').onclick=()=>{d.close();confirmAction('Load another question bank? Current progress will be cleared.',()=>{state.rows=[];state.used.clear();state.results.clear();renderStart()})};};
+renderStart();

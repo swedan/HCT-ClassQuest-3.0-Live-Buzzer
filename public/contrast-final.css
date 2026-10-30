@@ -1,0 +1,11 @@
+/* ClassQuest 3.1.3: final contrast fixes. Applied last in the cascade. */
+.question-card .choices .choice,.question-card .choices .choice:not(strong),.question-card .choices .choice *:not(strong){color:#112e4c!important;text-shadow:none!important}
+.question-card .choices .choice strong{color:#1266d5!important;text-shadow:none!important}
+.question-card .choice{background:#f2f7ff!important;border-color:#c7d9ed!important}
+.question-card .choice:nth-child(even){background:#eaf8f3!important;border-color:#b8dfd1!important}
+.final-screen p,.final-screen p strong,.final-screen .subtitle,.final-screen .subtitle strong{color:#e0edfa!important;text-shadow:none!important}
+.upload-zone{background:#edf5ff!important;color:#15324f!important;border-color:#6d9ee0!important}
+.upload-zone h2,.upload-zone p,.upload-zone .note,.upload-zone small{color:#274c70!important;text-shadow:none!important}
+.upload-zone h2{color:#122f4e!important}
+/* Preserve button labels on colored buttons. */
+.upload-zone .btn{color:#fff!important}

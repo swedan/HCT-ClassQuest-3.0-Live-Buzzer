@@ -1,0 +1,19 @@
+/* ClassQuest 3.1.2 — student mobile contrast fixes */
+.student-app{background:#f6f9fd!important;color:#142d47!important}
+.student-app p,.student-app label,.student-app .label{color:#244563!important}
+.student-app .logo,.student-app h1,.student-app .player,.student-app .score{color:#163b60!important;text-shadow:none!important}
+.student-app .connected{color:#096a4f!important}
+.student-app .round-label{background:#e2effa!important;color:#173e64!important}
+.student-app .status{color:#173b5c!important}
+.student-app .countdown{color:#945c05!important}
+.student-app .student-leaders{background:#fff!important;color:#18334f!important;border-color:#b9d0e2!important}
+.student-app .student-leaders h2{color:#173b5c!important}
+.student-app .student-leaders strong{color:#795000!important}
+.student-app .student-leaders>div{color:#18334f!important}
+.student-app .buzz:disabled:not(.winner){color:#fff!important;background:#506a85!important;border-color:#7792a9!important;opacity:1!important}
+.student-app .buzz.winner{color:#083b2d!important}
+.student-app input{background:#fff!important;color:#142d47!important;border-color:#789cb9!important}
+.student-app input::placeholder{color:#526c85!important;opacity:1}
+.student-app .avatar{background:#e8f2fa!important;color:#142d47!important}
+.student-app .avatar.selected{background:#fff3d6!important}
+.student-app button:focus-visible,.student-app input:focus-visible{outline:3px solid #bd820b;outline-offset:3px}

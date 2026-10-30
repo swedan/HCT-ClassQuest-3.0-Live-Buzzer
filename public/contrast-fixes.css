@@ -1,0 +1,45 @@
+/* ClassQuest 3.1.2 — accessible foreground/background pairing.
+   Loaded after the arcade skin; presentation-only, no gameplay changes. */
+:root{color-scheme:dark}
+/* Explicitly light surfaces: never inherit the dark arcade foreground. */
+.upload-zone,.ai-entry,.ai-panel,.ai-question,.qm-item,.qm-preview-answer,
+.analytics-panel,.analytics-card,.analytics-table,.analytics-row,.review-item,
+.question-card .answer,.answer,.round-label{color:#142d47!important}
+.upload-zone h2,.upload-zone p,.upload-zone small,.upload-zone label,
+.ai-entry h2,.ai-panel h2,.ai-panel h3,.ai-panel p,.ai-question,
+.qm-item strong,.qm-item .qm-info,.qm-preview-answer,
+.analytics-row:not(.analytics-head),.analytics-row:not(.analytics-head) span,
+.review-item,.review-item p,.review-item strong,
+.answer,.answer *{color:#142d47!important}
+/* Keep subdued text dark enough for readability on pale backgrounds. */
+.upload-zone p,.upload-zone small,.ai-entry p,.qm-item .qm-meta,
+.analytics-card span,.review-item small{color:#48627b!important}
+/* The question manager has white cards inside a dark container. */
+.qm-item{background:#fff!important;border-color:#cbd8e5!important}
+.qm-item strong{color:#17334f!important}
+.qm-item .qm-chips span{background:#dcebf7!important;color:#173b5d!important}
+.qm-preview .qm-preview-body{color:#f1f6ff}
+.qm-preview .qm-detail{background:#203a57!important;color:#f1f6ff!important}
+.qm-preview .qm-detail strong{color:#f1f6ff!important}
+.qm-preview .qm-detail span{color:#afc6dc!important}
+.qm-preview .qm-preview-answer{background:#e8f8ef!important;border-color:#86c9aa!important;color:#123c2d!important}
+.qm-preview .qm-preview-answer *{color:#123c2d!important}
+/* Base stylesheet marks .answer background !important, so its text must follow it. */
+.question-card .answer,.question-card .answer *{color:#123c2d!important}
+/* Statistics board: white panels and alternating rows. */
+.analytics-panel,.analytics-card,.analytics-table{background:#fff!important}
+.analytics-row:not(.analytics-head){color:#18334f!important}
+.analytics-head,.analytics-head span{color:#244768!important}
+.analytics-card strong,.analytics-panel h2{color:#112b47!important}
+/* Prompt builder: preserve high contrast on white inputs and dark selects. */
+.ai-panel,.ai-entry{background:#fff!important}
+.ai-grid label,.ai-panel label,.ai-panel .field{color:#173455!important}
+.ai-grid input:not([type=checkbox]),.ai-grid textarea,.ai-panel input:not([type=checkbox]){background:#fff!important;color:#173455!important;border-color:#93acc2!important}
+.ai-grid select,.ai-panel select{background:#102a43!important;color:#fff!important;border-color:#6c92b3!important}
+.ai-panel input::placeholder,.ai-grid input::placeholder,.ai-grid textarea::placeholder{color:#526c85!important;opacity:1}
+.ai-question{background:#f7faff!important}
+.ai-status{color:#15539a!important}
+/* A few other light panels use inherited dark-theme text. */
+.live-qr,.live-qr *{color:#142d47}
+/* Focus indicators stay visible for keyboard navigation. */
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #f0bc4b;outline-offset:3px}

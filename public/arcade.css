@@ -1,0 +1,36 @@
+/* HCT ClassQuest 3.1 Professional Arcade theme. Presentation-only overrides. */
+:root{--navy:#0b1b34;--navy2:#162c4a;--blue:#2677e8;--cyan:#55d8ed;--bg:#0c1b32;--card:#152a45;--text:#f1f6ff;--muted:#b1c9df;--line:#355572;--good:#21b884;--bad:#e35c6d;--warn:#f2ae43;--shadow:0 12px 0 #071324,0 18px 36px #030c1b99;--r:14px}
+body{background:linear-gradient(180deg,#08162b,#132e46 40%,#091b30);color:var(--text)}
+.topbar{height:84px;background:#0b1a32;border-bottom:3px solid #e7b94f;box-shadow:0 5px 0 #050f21;position:relative;z-index:11}
+.brand-mark{background:linear-gradient(145deg,#f9d774,#d88c29);color:#122640;border-radius:9px;border:2px solid #ffe6a0;box-shadow:3px 3px 0 #7c4b17}
+.brand strong{font-size:21px;letter-spacing:.01em}.brand small{color:#b4d5e9}.arcade-edition{font-style:normal;font-size:10px;letter-spacing:.13em;background:#f3bd55;color:#10213c;border-radius:4px;padding:5px 7px;margin-left:8px;vertical-align:middle}
+.arcade-landscape{height:clamp(155px,22vw,290px);position:relative;background:#244f71 url('arcade-landscape.svg') center 57%/cover no-repeat;border-bottom:5px solid #69ba8c;overflow:hidden;box-shadow:inset 0 -35px 45px #071b2c7a}
+.arcade-landscape:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#081c34a8,transparent 80%);pointer-events:none}
+.arcade-landscape-label{position:absolute;z-index:1;left:max(28px,calc((100vw - 1180px)/2));top:50%;transform:translateY(-50%);display:grid;gap:8px;text-shadow:3px 4px 0 #0b2338}
+.arcade-landscape-label span{font-weight:900;color:#f6cb67;letter-spacing:.2em;font-size:clamp(10px,1.1vw,14px)}.arcade-landscape-label strong{font-weight:1000;font-size:clamp(19px,3.1vw,40px);color:white;max-width:720px}
+.main{padding-top:28px}.hero{margin-top:12px}.hero h1,.screen-title{color:#fff;text-shadow:3px 4px 0 #071426}.eyebrow,.question-kicker{color:#f4c45f;letter-spacing:.13em}.hero p,.subtitle,.breadcrumbs,.note{color:#b9cde1}
+.upload-zone,.panel,.select-card,.keyword-card,.question-card,.live-lobby,.live-leaderboard,.live-qr,.live-avatar,.rank,.stat,.student-leaders{background:#162b46;color:#f1f6ff;border:2px solid #385d7c;box-shadow:var(--shadow)}
+.loaded{background:#163f3c;border:2px solid #49ad87;color:#edfff4}.loaded .stat{background:#1d4b50;border-color:#368b83}.loaded p,.loaded small{color:#d7f5eb}
+.btn{background:linear-gradient(180deg,#3d8df6,#2365cf);border:2px solid #7bbaff;border-bottom:5px solid #16458e;color:#fff;border-radius:9px;box-shadow:0 4px 0 #061b38;font-weight:900;letter-spacing:.015em}
+.btn:hover{filter:brightness(1.12);transform:translateY(-2px)}.btn:active{transform:translateY(2px);box-shadow:none}.btn.ghost{background:#243e5e;color:#eaf5ff;border-color:#50728f;border-bottom-color:#10253c}.btn.good{background:#159b70;border-color:#56ddb1;border-bottom-color:#0b674c}.btn.danger{background:#ba3f58;border-color:#f18b9e;border-bottom-color:#742437}.btn.warn{background:#bf7e27;border-color:#f8c775;border-bottom-color:#7d4917}
+.select-card:hover,.keyword-card:hover{border-color:#f2c45e;box-shadow:0 10px 0 #071324,0 16px 32px #0007}.select-card h3,.keyword-card h3{color:#f9d47c}.select-card p,.keyword-card p,.keyword-meta{color:#bdd1e5}.keyword-card.done{background:#1c2c40;color:#a2afbc}
+.question-card{border:3px solid #e1b95b;background:linear-gradient(160deg,#1d3859,#10233d)}.question-text{color:#fff;text-shadow:2px 3px 0 #0b1829}.question-meta{color:#d1e1ee}.choice{background:#203e5e;color:#f1f6ff;border:2px solid #476989}.answer{background:#183f4c;border:2px solid #4cbd9e;color:#eafff5}
+.timer-display{color:#f9d47c}.timer-display.zero{color:#ff7286}.timer-ring{filter:drop-shadow(0 3px 4px #081527)}
+.field input,.field select,.qm-toolbar input,.award select{background:#0f243c;color:#f4f9ff;border:2px solid #4c6d88}.field input::placeholder,.qm-toolbar input::placeholder{color:#a9bfd3}option{background:#102840;color:white}
+.live-session-banner,.live-round-panel,.live-mode-note{background:#183651;border:2px solid #3faeb0;color:#e9f8ff}.live-session-banner>span,.live-tag,.live-round-top strong,.live-winner{color:#f4cc6c}.live-winner small{color:#b9d4e4}.live-person{border-bottom-color:#3b5c74}.live-person strong{color:#f5cb6a}.live-leaderboard h3{color:#f5d17d}.live-roster-person{color:#fff}.live-avatar small{color:#dcecff}
+.qm-manage-entry{background:#243e5e;color:#fff;border:2px solid #5e829e}.qm-chips span{background:#254763;color:#e6f2ff}.qm-detail{background:#203a57;color:#f0f6ff}.qm-preview-body{color:#f2f6fc}.qm-preview,.qm-preview dialog{color:#f1f6ff}
+dialog{background:#152c48;color:#f1f6ff;border:2px solid #e5ba61}.dialog-head{border-color:#4b6680}dialog::backdrop{background:#04101fd9}.icon-btn{color:#fff}.scoreboard{background:#07182cf5;border-top:3px solid #e9bd58}.score-team{border-color:#4e7391}.rank{color:#fff}.rank:first-child{border-color:#e4bb58}
+.live-lobby h1,.live-lobby h2,.live-post-round h2{color:#fff}.live-pin{color:#f6cf6d}.live-qr{background:#fff;color:#11233d}.live-qr small{color:#11233d}.live-qr img{background:#fff;padding:8px;border-radius:10px}
+@media(max-width:760px){.arcade-edition{display:block;width:max-content;margin:4px 0 0}.arcade-landscape{height:145px}.arcade-landscape-label strong{font-size:19px}.topbar{height:auto;min-height:82px}.main{padding-top:20px}}
+@media(prefers-reduced-motion:reduce){.btn,.select-card,.keyword-card{transition:none!important}}
+
+/* ClassQuest 3.1.1: compact student tiles and topic-level results */
+.live-roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:14px;align-items:stretch;margin:18px 0}
+.live-roster-person{position:relative;display:flex;align-items:center;justify-content:center;min-height:126px;padding:12px 8px;background:#162b46;border:2px solid #385d7c;border-radius:16px;transition:transform .18s ease,border-color .18s ease}
+.live-roster-person:hover,.live-roster-person:focus-within{border-color:#f5cb6a;transform:translateY(-2px)}
+.live-roster-person .live-avatar{border:0;box-shadow:none;background:transparent;min-width:0;width:100%;padding:6px 2px;font-size:34px;overflow:hidden}
+.live-roster-person .live-avatar small{font-size:13px;max-width:100%;overflow-wrap:anywhere;text-align:center}
+.live-roster-person .live-remove{position:absolute;inset:auto 7px 7px 7px;display:flex;align-items:center;justify-content:center;gap:4px;opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .15s,transform .15s,visibility .15s;z-index:2;padding:7px;font-size:12px;background:#cf4058;color:white}
+.live-roster-person:hover .live-remove,.live-roster-person:focus-within .live-remove{opacity:1;visibility:visible;transform:none}
+@media(hover:none),(pointer:coarse){.live-roster-person .live-remove{opacity:1;visibility:visible;transform:none;position:static;margin-top:4px}.live-roster-person{flex-direction:column;min-height:150px}}
+.live-board-results{margin-top:24px}.live-board-results[hidden]{display:none}.live-board-results .live-leaderboard{max-width:none}
