@@ -1,0 +1,1 @@
+ClassQuest 3.2.1 — Fix Recent Question Banks not saving after Excel/CSV import. Expose CQRecent on window for the existing app.js handlers; update asset cache version. Existing banks and features preserved.
